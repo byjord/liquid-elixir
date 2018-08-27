@@ -478,9 +478,9 @@ defmodule Liquid.Filters do
   @doc """
   Recursively pass through all of the input filters applying them
   """
-  def filter([], value), do: value
+  def filter([], value, _context), do: value
 
-  def filter([filter | rest], value) do
+  def filter([filter | rest], value, context) do
     [name, args] = filter
 
     args =
@@ -503,13 +503,13 @@ defmodule Liquid.Filters do
 
         # Fallback to custom if no standard
         {_, nil, _} ->
-          apply_function(custom_filters[name], name, [value | args])
+          apply_function(custom_filters[name], name, [value | args], context)
 
         _ ->
-          apply_function(Functions, name, [value | args])
+          apply_function(Functions, name, [value | args], context)
       end
 
-    filter(rest, ret)
+    filter(rest, ret, context)
   end
 
   @doc """
@@ -536,7 +536,7 @@ defmodule Liquid.Filters do
     Application.put_env(:liquid, :custom_filters, custom_filters)
   end
 
-  defp apply_function(module, name, args) do
+  defp apply_function(module = Liquid.Filters.Functions, name, args, _context) do
     try do
       apply(module, name, args)
     rescue
@@ -545,6 +545,20 @@ defmodule Liquid.Filters do
 
         raise ArgumentError,
           message: "Liquid error: wrong number of arguments (#{e.arity} for #{functions[name]})"
+    end
+  end
+
+  # pass context to all external functions
+  defp apply_function(module, name, args, context) do
+    try do
+      apply(module, name, [args, context])
+    rescue
+      e in UndefinedFunctionError ->
+        functions = module.__info__(:functions)
+        error = "Liquid error: wrong number of arguments (#{e.arity} for #{functions[name]})"
+
+        raise ArgumentError,
+          message: error
     end
   end
 end
