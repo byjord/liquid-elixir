@@ -17,6 +17,8 @@ defmodule Liquid do
 
   def variable_start, do: "{{"
   def variable_end, do: "}}"
+  def variable_start_whitespace, do: "{{-"
+  def variable_end_whitespace, do: "-}}"
   def variable_incomplete_end, do: "\}\}?"
 
   def tag_start, do: "{%"
@@ -28,13 +30,16 @@ defmodule Liquid do
     do: ~r/^{%.*}}$|^{{.*%}$|^{%.*([^}%]}|[^}%])$|^{{.*([^}%]}|[^}%])$|(^{{|^{%)/ms
 
   def tokenizer,
-    do: ~r/()#{tag_start()}.*?#{tag_end()}()|()#{variable_start()}.*?#{variable_end()}()/
+    do:
+      ~r/()#{tag_start()}.*?#{tag_end()}()|()#{variable_start()}.*?#{variable_end()}()|()#{
+        variable_start_whitespace()
+      }.*?#{variable_end_whitespace()}()/
 
   def parser,
     do:
       ~r/#{tag_start()}\s*(?<tag>.*?)\s*#{tag_end()}|#{variable_start()}\s*(?<variable>.*?)\s*#{
         variable_end()
-      }/m
+      }|#{variable_start_whitespace()}\s*(?<variablewhitespace>.*?)\s*#{variable_end_whitespace()}/m
 
   def template_parser, do: ~r/#{partial_template_parser()}|#{any_starting_tag()}/ms
 
